@@ -1,0 +1,31 @@
+# Build outputs
+bin/
+obj/
+out/
+publish/
+
+# Visual Studio / Rider
+.vs/
+.idea/
+*.user
+*.suo
+.vscode/
+TestResults/
+*.trx
+
+# SQLite demo database (recreated + seeded on boot)
+*.db
+*.db-shm
+*.db-wal
+
+# Local overrides / secrets (tracked appsettings.json holds dev-only values)
+appsettings.*.local.json
+appsettings.Development.local.json
+*.pfx
+*.key
+.env
+
+# OS / misc
+.DS_Store
+Thumbs.db
+server.log
