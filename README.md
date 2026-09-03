@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # WMH LMS — Demo Backend
 
 ASP.NET Core (.NET 8) + EF Core + SQLite. Serves the demo frontend.
@@ -52,3 +53,6 @@ before first boot.
 
 Stop the backend and delete `WmhLms.Api/app.db` (`-shm`/`-wal` go with
 it). Next boot re-seeds from scratch. Never commit `*.db` files.
+=======
+# WMH-LMS-BACKEND
+>>>>>>> 2655e21b881aa3cdfcdff50299c858893e41cda6
