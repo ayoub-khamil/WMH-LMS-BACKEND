@@ -29,6 +29,9 @@ inputs, so completion is never verified and IDs are throwaway
 6. Demo data: none needed. Existing completions issue certificates lazily
    on first download.
 
+**Note:** the `status = completed` check in step 2 is now trustworthy —
+completion can no longer be forged from the client (see section 8).
+
 ---
 
 ## 2. Plain-text content model (decided)
@@ -42,6 +45,8 @@ is what agents see.
 
 - Backend: strip/reject HTML tags in `text_content` on item create/update
   (defense in depth; the editor no longer suggests formatting exists).
+  Deliberately left alone in the hardening pass — it changes what a
+  manager can save, so it should land together with the editor copy.
 - Seed data already converted to plain text (`DemoSeed`). Any future seed
   content must follow suit. Existing databases with HTML-tagged rows keep
   rendering the tags literally until edited.
@@ -55,11 +60,13 @@ is what agents see.
   (backend currently filters to published, so in-progress courses vanish
   silently). Needs backend + UI.
 
-## 4. Learning-flow verification
+## 4. Learning-flow verification — DONE
 
-- Execute the quiz *pass* path and all authoring write paths
-  (user/course/section/item/question CRUD) end-to-end against the API.
-  They compile and follow tested patterns but have never been run.
+Executed end-to-end against the running API: the quiz *pass* path, the
+fail → cooldown → review → retry path, and every authoring write path
+(user/course/section/item/question CRUD, both reorder endpoints). All
+green. The harness lives outside the repo; converting it into an xUnit
+integration project is section 7.
 
 ## 5. Data and contract hardening
 
@@ -70,14 +77,49 @@ is what agents see.
   the helper first).
 - `course_id` deep-links from the user-assignments modal rows.
 
-## 6. Auth and security (real build, not demo)
+Both backend items are still open on purpose: each one changes a payload
+the frontend reads, so they belong with the matching frontend change.
 
-- httpOnly cookies vs localStorage JWT, refresh-token rotation,
-  password reset and invite flows.
-- Backend role-enforcement audit (client-side guards are courtesy only).
+## 6. Auth and security (real build, not demo) — PARTLY DONE
+
+- **Done:** backend role-enforcement audit. Identity is taken from the
+  bearer token, never from a client-supplied `agent_id`; enrolment is
+  required for every learn read and write; item/course membership is
+  verified; the quiz cooldown and review gate are enforced server-side;
+  only the root account administers managers; endpoints are authenticated
+  by default via a fallback authorization policy.
+- **Still open:** httpOnly cookies vs localStorage JWT, refresh-token
+  rotation, password reset and invite flows.
 - PasswordHasher is correctly in place; keep it and never log plaintext.
 
 ## 7. Quality
 
-- Test coverage: unit tests for grading/progress math, browser journeys
-  for auth, CRUD, and quiz-lock flows (including reload mid-lock).
+- Unit tests for grading/progress math (`QuizGrading`, `Progress.Percent`,
+  the completion reconciliation in `LearnService`).
+- An xUnit + `WebApplicationFactory` integration project covering the
+  journeys already verified manually in section 4.
+- Browser journeys for auth, CRUD, and quiz-lock flows (including reload
+  mid-lock).
+
+## 8. Backend hardening pass — DONE
+
+Closed against the existing feature set and API contract:
+
+- Client-supplied `agent_id` no longer widens access (403 on mismatch).
+- No self-enrolment; no completion of items that belong to another course.
+- Stored progress is reconciled against the live course tree on every read
+  and write, so deleted or foreign item ids cannot inflate completion.
+- Quiz retake: lock is checked before answer validation; the review gate
+  is enforced server-side rather than by the client alone.
+- Only root may edit, disable or delete a manager; nobody may disable or
+  delete themselves.
+- Real foreign keys with cascade, plus unique indexes on
+  `(course_id, agent_id)` and `(agent_id, quiz_item_id)`. Quiz locks are
+  cleaned up on unassign, item delete, course delete and user delete.
+- EF Core migrations replace `EnsureCreated`; schema changes are now
+  versioned and applied on boot.
+- Global exception handling with logging; unhandled errors no longer leak
+  internals outside Development.
+- Fallback authorization policy, paging clamps, input validation via a
+  shared `Guard`, JWT key validated at startup, N+1 queries removed from
+  the agent dashboard and bulk assignment.

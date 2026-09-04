@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using WmhLms.Core.Dtos;
 using WmhLms.Core.Services;
 
@@ -8,7 +9,8 @@ namespace WmhLms.Api.Controllers;
 [Route("api/auth")]
 public class AuthController(AuthService auth) : BaseController
 {
-    [HttpPost("login"), AllowAnonymous]
+    // Credential stuffing guard: the limiter is keyed on client IP.
+    [HttpPost("login"), AllowAnonymous, EnableRateLimiting(Program.LoginRateLimitPolicy)]
     public async Task<IActionResult> Login([FromBody] LoginRequest req)
     {
         var (token, user) = await auth.LoginAsync(req.Email, req.Password);

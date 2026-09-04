@@ -9,15 +9,37 @@ namespace WmhLms.Core.Seed;
 /// <summary>Demo-only seed: root manager + agent + catalogue. No mock progress.</summary>
 public static class DemoSeed
 {
-    public static async Task RunAsync(AppDbContext db, IPasswordService passwords, IConfiguration config)
+    private static string Require(bool isDevelopment, string key, string developmentDefault)
+    {
+        if (isDevelopment) return developmentDefault;
+        throw new InvalidOperationException(
+            $"{key} must be configured when seeding outside Development, "
+            + "or set Seed:DemoContent=false.");
+    }
+
+    public static async Task RunAsync(AppDbContext db, IPasswordService passwords,
+        IConfiguration config, bool isDevelopment)
+    {
+        await SeedUsersAsync(db, passwords, config, isDevelopment);
+        await SeedCoursesAsync(db);
+    }
+
+    /// <summary>Root manager + demo agent. Skipped once any user exists.</summary>
+    private static async Task SeedUsersAsync(AppDbContext db, IPasswordService passwords,
+        IConfiguration config, bool isDevelopment)
     {
         if (await db.Users.AnyAsync()) return;
 
-        var now = DateTime.UtcNow;
-        var managerEmail = config["Seed:ManagerEmail"] ?? "ayoub.khamil@watermelon-hub.com";
-        var managerPassword = config["Seed:ManagerPassword"] ?? "ayoub1234";
-        var agentEmail = config["Seed:AgentEmail"] ?? "khalid.khamil@watermelon-hub.com";
-        var agentPassword = config["Seed:AgentPassword"] ?? "khalid1234";
+        // Demo credentials only exist in Development. Outside it, the seed
+        // refuses to invent a password for an account that can sign in.
+        var managerEmail = config["Seed:ManagerEmail"]
+            ?? Require(isDevelopment, "Seed:ManagerEmail", "ayoub.khamil@watermelon-hub.com");
+        var managerPassword = config["Seed:ManagerPassword"]
+            ?? Require(isDevelopment, "Seed:ManagerPassword", "ayoub1234");
+        var agentEmail = config["Seed:AgentEmail"]
+            ?? Require(isDevelopment, "Seed:AgentEmail", "khalid.khamil@watermelon-hub.com");
+        var agentPassword = config["Seed:AgentPassword"]
+            ?? Require(isDevelopment, "Seed:AgentPassword", "khalid1234");
 
         var manager = new User
         {
@@ -34,6 +56,17 @@ public static class DemoSeed
         };
         agent.PasswordHash = passwords.Hash(agentPassword);
         db.Users.AddRange(manager, agent);
+        await db.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Demo catalogue. Seeded independently of the users so that
+    /// POST /api/dev/reset (which keeps the root account) still restores the
+    /// content on the next boot, instead of leaving an empty catalogue behind.
+    /// </summary>
+    private static async Task SeedCoursesAsync(AppDbContext db)
+    {
+        if (await db.Courses.AnyAsync()) return;
 
         var courses = new List<Course>
         {
@@ -176,7 +209,6 @@ public static class DemoSeed
                 }
             }
         db.Courses.AddRange(courses);
-        _ = now;
         await db.SaveChangesAsync();
     }
 }

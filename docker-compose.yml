@@ -1,0 +1,17 @@
+services:
+  api:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      # Required. Generate with: openssl rand -base64 48
+      JWT__KEY: ${JWT_KEY:?set JWT_KEY in your environment or .env file}
+      Jwt__Issuer: wmh-lms
+      Jwt__Audience: wmh-lms-frontend
+      Cors__Origins__0: ${FRONTEND_ORIGIN:-http://localhost:5173}
+    volumes:
+      - wmh-data:/data
+    restart: unless-stopped
+
+volumes:
+  wmh-data:

@@ -1,6 +1,52 @@
-@WmhLms.Api_HostAddress = http://localhost:5025
+@host = http://localhost:5000/api
 
-GET {{WmhLms.Api_HostAddress}}/weatherforecast/
-Accept: application/json
+### Health (anonymous)
+GET {{host}}/health
 
-###
+### Login as the seeded root manager
+# @name login
+POST {{host}}/auth/login
+Content-Type: application/json
+
+{ "email": "ayoub.khamil@watermelon-hub.com", "password": "ayoub1234" }
+
+### Current user
+@token = {{login.response.body.token}}
+GET {{host}}/me
+Authorization: Bearer {{token}}
+
+### Manager: list courses
+GET {{host}}/courses?page=1&limit=10
+Authorization: Bearer {{token}}
+
+### Manager: list agents
+GET {{host}}/users?role=agent&status=active&limit=100
+Authorization: Bearer {{token}}
+
+### Login as the seeded agent
+# @name agentLogin
+POST {{host}}/auth/login
+Content-Type: application/json
+
+{ "email": "khalid.khamil@watermelon-hub.com", "password": "khalid1234" }
+
+### Agent: learning dashboard
+@agentToken = {{agentLogin.response.body.token}}
+@agentId = {{agentLogin.response.body.user.id}}
+GET {{host}}/learn/courses?agent_id={{agentId}}
+Authorization: Bearer {{agentToken}}
+
+### Agent: course tree
+GET {{host}}/learn/courses/101?agent_id={{agentId}}
+Authorization: Bearer {{agentToken}}
+
+### Agent: quiz lock status
+GET {{host}}/learn/quiz/lock?agent_id={{agentId}}&item_id=22
+Authorization: Bearer {{agentToken}}
+
+### Rejected: acting as a different agent (expects 403)
+GET {{host}}/learn/courses?agent_id=1
+Authorization: Bearer {{agentToken}}
+
+### Dev only: wipe back to the root account
+POST {{host}}/dev/reset

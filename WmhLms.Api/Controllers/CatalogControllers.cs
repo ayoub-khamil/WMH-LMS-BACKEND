@@ -11,7 +11,7 @@ public class CoursesController(CourseService courses) : BaseController
     [HttpGet("/api/courses")]
     public async Task<IActionResult> List([FromQuery] string? status, [FromQuery] string? search,
         [FromQuery] int page = 1, [FromQuery] int limit = 10) =>
-        Ok(await courses.ListAsync(status, search, page <= 0 ? 1 : page, limit <= 0 ? 10 : limit));
+        Ok(await courses.ListAsync(status, search, page, limit));
 
     [HttpGet("/api/courses/{id:long}")]
     public async Task<IActionResult> GetById(long id) => Ok(await courses.GetByIdAsync(id));

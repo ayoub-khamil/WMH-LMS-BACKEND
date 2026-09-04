@@ -9,6 +9,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WmhLms.Core", "WmhLms.Core\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WmhLms.Data", "WmhLms.Data\WmhLms.Data.csproj", "{ABD37198-1213-48DB-9D9E-2E76E6343490}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WmhLms.Tests", "WmhLms.Tests\WmhLms.Tests.csproj", "{4728E51B-8BE5-4966-ADEB-59CADB4146DD}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -55,6 +57,18 @@ Global
 		{ABD37198-1213-48DB-9D9E-2E76E6343490}.Release|x64.Build.0 = Release|Any CPU
 		{ABD37198-1213-48DB-9D9E-2E76E6343490}.Release|x86.ActiveCfg = Release|Any CPU
 		{ABD37198-1213-48DB-9D9E-2E76E6343490}.Release|x86.Build.0 = Release|Any CPU
+		{4728E51B-8BE5-4966-ADEB-59CADB4146DD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4728E51B-8BE5-4966-ADEB-59CADB4146DD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4728E51B-8BE5-4966-ADEB-59CADB4146DD}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{4728E51B-8BE5-4966-ADEB-59CADB4146DD}.Debug|x64.Build.0 = Debug|Any CPU
+		{4728E51B-8BE5-4966-ADEB-59CADB4146DD}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{4728E51B-8BE5-4966-ADEB-59CADB4146DD}.Debug|x86.Build.0 = Debug|Any CPU
+		{4728E51B-8BE5-4966-ADEB-59CADB4146DD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4728E51B-8BE5-4966-ADEB-59CADB4146DD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4728E51B-8BE5-4966-ADEB-59CADB4146DD}.Release|x64.ActiveCfg = Release|Any CPU
+		{4728E51B-8BE5-4966-ADEB-59CADB4146DD}.Release|x64.Build.0 = Release|Any CPU
+		{4728E51B-8BE5-4966-ADEB-59CADB4146DD}.Release|x86.ActiveCfg = Release|Any CPU
+		{4728E51B-8BE5-4966-ADEB-59CADB4146DD}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -6,9 +6,12 @@ using WmhLms.Data;
 namespace WmhLms.Api.Controllers;
 
 /// <summary>
-/// Demo helpers. 404 unless running in Development.
-/// POST /api/dev/reset wipes courses, assignments, locks and every
-/// non-root user, leaving only the seeded root account.
+/// Demo helpers. Every action 404s unless running in Development, so these
+/// routes do not exist in a deployed build.
+///
+/// POST /api/dev/reset wipes courses, assignments, locks and every non-root
+/// user, leaving only the seeded root account. Restart the API afterwards to
+/// re-seed the demo catalogue (DemoSeed seeds users and content separately).
 /// </summary>
 [Route("api/dev")]
 public class DevController(AppDbContext db, IWebHostEnvironment env) : BaseController
@@ -28,12 +31,14 @@ public class DevController(AppDbContext db, IWebHostEnvironment env) : BaseContr
         return Ok(new { success = true, root, users, courses });
     }
 
-    [HttpDelete("quiz-lock")]
+    /// <summary>Clears one quiz cooldown. Agents may only clear their own.</summary>
+    [HttpDelete("quiz-lock"), Authorize]
     public async Task<IActionResult> ClearQuizLock([FromQuery] long agent_id, [FromQuery] long item_id)
     {
         if (!env.IsDevelopment()) return NotFound();
+        var agentId = ResolveAgentId(agent_id);
         var quizLock = await db.QuizLocks.FirstOrDefaultAsync(x =>
-            x.AgentId == agent_id && x.QuizItemId == item_id);
+            x.AgentId == agentId && x.QuizItemId == item_id);
         if (quizLock is not null)
         {
             db.QuizLocks.Remove(quizLock);

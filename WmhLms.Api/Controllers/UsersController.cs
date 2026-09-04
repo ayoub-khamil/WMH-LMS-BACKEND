@@ -11,7 +11,7 @@ public class UsersController(UserService users) : BaseController
     [HttpGet]
     public async Task<IActionResult> List([FromQuery] string? role, [FromQuery] string? status,
         [FromQuery] string? search, [FromQuery] int page = 1, [FromQuery] int limit = 10) =>
-        Ok(await users.ListAsync(role, status, search, page <= 0 ? 1 : page, limit <= 0 ? 10 : limit));
+        Ok(await users.ListAsync(role, status, search, page, limit));
 
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateUserRequest req) =>
