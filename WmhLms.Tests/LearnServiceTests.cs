@@ -73,10 +73,12 @@ public class LearnServiceTests : IDisposable
         _db.SaveChanges();
     }
 
-    private void Enrol(long courseId = 101) =>
+    // completedItemIds seeds progress: the quiz (item 12) sits behind item 11,
+    // and sequential gating now refuses it until item 11 is done.
+    private void Enrol(long courseId = 101, string completedItemIds = "[]") =>
         _db.Assignments.Add(new Assignment
         {
-            CourseId = courseId, AgentId = 2, CompletedItemIdsJson = "[]",
+            CourseId = courseId, AgentId = 2, CompletedItemIdsJson = completedItemIds,
             Status = "not_started", AssignedAt = _clock.GetUtcNow().UtcDateTime
         });
 
@@ -152,12 +154,42 @@ public class LearnServiceTests : IDisposable
         Assert.NotNull(assignment.CompletedAt);
     }
 
+    // ── Sequential gating ──
+
+    [Fact]
+    public async Task An_item_cannot_be_completed_before_the_one_in_front_of_it()
+    {
+        Enrol();
+        await _db.SaveChangesAsync();
+
+        var ex = await Assert.ThrowsAsync<ApiException>(() =>
+            _learn.CompleteItemAsync(new CompleteItemRequest(12, 101, 2)));
+
+        Assert.Equal(400, ex.StatusCode);
+        Assert.Equal("Complete the previous modules first.", ex.Message);
+        var assignment = await _db.Assignments.SingleAsync();
+        Assert.Equal("[]", assignment.CompletedItemIdsJson);
+    }
+
+    [Fact]
+    public async Task Items_completed_in_order_are_accepted()
+    {
+        Enrol();
+        await _db.SaveChangesAsync();
+
+        await _learn.CompleteItemAsync(new CompleteItemRequest(11, 101, 2));
+        await _learn.CompleteItemAsync(new CompleteItemRequest(12, 101, 2));
+
+        var assignment = await _db.Assignments.SingleAsync();
+        Assert.Equal("[11,12]", assignment.CompletedItemIdsJson);
+    }
+
     // ── Grading ──
 
     [Fact]
     public async Task All_correct_passes_and_completes_the_item()
     {
-        Enrol();
+        Enrol(completedItemIds: "[11]");
         await _db.SaveChangesAsync();
 
         var result = await _learn.SubmitQuizAsync(new SubmitQuizRequest(12, 101, 2,
@@ -172,7 +204,7 @@ public class LearnServiceTests : IDisposable
     [Fact]
     public async Task A_wrong_answer_fails_and_starts_a_cooldown()
     {
-        Enrol();
+        Enrol(completedItemIds: "[11]");
         await _db.SaveChangesAsync();
 
         var result = await _learn.SubmitQuizAsync(new SubmitQuizRequest(12, 101, 2,
@@ -196,7 +228,7 @@ public class LearnServiceTests : IDisposable
                 new Option { Id = 4, QuestionId = 202, Text = "b", IsCorrect = true }
             ]
         });
-        Enrol();
+        Enrol(completedItemIds: "[11]");
         await _db.SaveChangesAsync();
 
         var result = await _learn.SubmitQuizAsync(new SubmitQuizRequest(12, 101, 2,
@@ -211,7 +243,7 @@ public class LearnServiceTests : IDisposable
     [Fact]
     public async Task Retrying_inside_the_cooldown_is_locked()
     {
-        Enrol();
+        Enrol(completedItemIds: "[11]");
         await _db.SaveChangesAsync();
         await _learn.SubmitQuizAsync(new SubmitQuizRequest(12, 101, 2, [new QuizAnswerRequest(201, [2])]));
 
@@ -224,7 +256,7 @@ public class LearnServiceTests : IDisposable
     [Fact]
     public async Task After_the_cooldown_the_review_gate_still_applies()
     {
-        Enrol();
+        Enrol(completedItemIds: "[11]");
         await _db.SaveChangesAsync();
         await _learn.SubmitQuizAsync(new SubmitQuizRequest(12, 101, 2, [new QuizAnswerRequest(201, [2])]));
 
@@ -239,7 +271,7 @@ public class LearnServiceTests : IDisposable
     [Fact]
     public async Task Viewing_another_item_then_waiting_unlocks_the_retry()
     {
-        Enrol();
+        Enrol(completedItemIds: "[11]");
         await _db.SaveChangesAsync();
         await _learn.SubmitQuizAsync(new SubmitQuizRequest(12, 101, 2, [new QuizAnswerRequest(201, [2])]));
 
@@ -256,7 +288,7 @@ public class LearnServiceTests : IDisposable
     {
         // The lock is checked before answer validation, so the learner sees a
         // countdown rather than a confusing "answer all questions" error.
-        Enrol();
+        Enrol(completedItemIds: "[11]");
         await _db.SaveChangesAsync();
         await _learn.SubmitQuizAsync(new SubmitQuizRequest(12, 101, 2, [new QuizAnswerRequest(201, [2])]));
 

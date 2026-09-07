@@ -64,6 +64,23 @@ public class LearnService(AppDbContext db, TimeProvider time, IConfiguration con
         return (done, itemIds.Count);
     }
 
+    /// <summary>
+    /// Sequential order is a business rule, not a display convenience: an item
+    /// only counts once every item before it in the course is done. The UI
+    /// already hides later items, but the API is reachable without the UI.
+    /// </summary>
+    private static void RequireEarlierItemsComplete(Course course, Assignment assignment, long itemId)
+    {
+        var (done, _) = Reconcile(course, assignment);
+        var completed = done.ToHashSet();
+        foreach (var item in Flat(course))
+        {
+            if (item.Id == itemId) return;
+            if (!completed.Contains(item.Id))
+                throw ApiException.BadRequest("Complete the previous modules first.");
+        }
+    }
+
     private static CourseWithProgressDto WithProgress(Course c, Assignment? a)
     {
         var (done, total) = Reconcile(c, a);
@@ -140,6 +157,7 @@ public class LearnService(AppDbContext db, TimeProvider time, IConfiguration con
         if (Flat(course).All(i => i.Id != req.ItemId))
             throw ApiException.BadRequest("That item does not belong to this course.");
         var assignment = await RequireAssignmentAsync(req.CourseId, req.AgentId);
+        RequireEarlierItemsComplete(course, assignment, req.ItemId);
 
         var complete = ApplyCompletion(course, assignment, req.ItemId, time.GetUtcNow().UtcDateTime);
         await db.SaveChangesAsync();
@@ -160,6 +178,7 @@ public class LearnService(AppDbContext db, TimeProvider time, IConfiguration con
         var quiz = Flat(course).FirstOrDefault(i => i.Id == req.ItemId && i.Type == "quiz")
             ?? throw ApiException.NotFound("Quiz item not found");
         var assignment = await RequireAssignmentAsync(req.CourseId, req.AgentId);
+        RequireEarlierItemsComplete(course, assignment, req.ItemId);
 
         // Lock is checked before answer validation so a locked learner always
         // gets 423 with a countdown, never a confusing 400.
