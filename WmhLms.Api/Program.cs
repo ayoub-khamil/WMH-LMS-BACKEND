@@ -184,13 +184,17 @@ public static class Program
         builder.Services.AddHealthChecks()
             .AddDbContextCheck<AppDbContext>("database", tags: ["ready"]);
 
-        if (!isDevelopment)
+        // HSTS and the HTTPS redirect assume a TLS proxy in front. The local
+        // production run (docker compose, prod profile) has none, so it sets
+        // Security:RequireHttps=false. Never false on a real deployment.
+        var requireHttps = builder.Configuration.GetValue("Security:RequireHttps", true);
+        if (requireHttps)
             builder.Services.AddHsts(o => o.MaxAge = TimeSpan.FromDays(365));
 
         var app = builder.Build();
 
         app.UseForwardedHeaders();
-        if (!isDevelopment)
+        if (requireHttps)
         {
             app.UseHsts();
             app.UseHttpsRedirection();
