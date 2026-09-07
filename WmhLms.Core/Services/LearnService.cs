@@ -71,7 +71,7 @@ public class LearnService(AppDbContext db, TimeProvider time, IConfiguration con
         if (total > 0 && done.Count >= total) status = "completed";
         else if (done.Count > 0) status = "in_progress";
         return new(c.Id, c.Title, c.Description ?? "", c.Status, c.CreatedAt,
-            c.Sections.OrderBy(s => s.Order).Select(Mapping.ToDto).ToList(),
+            c.Sections.OrderBy(s => s.Order).Select(LearnMapper.ToDto).ToList(),
             Progress.Percent(done.Count, total), done, total,
             a?.AssignedAt, a?.CompletedAt, status);
     }
@@ -116,7 +116,7 @@ public class LearnService(AppDbContext db, TimeProvider time, IConfiguration con
             : await RequireAssignmentAsync(courseId, agentId);
         var (done, _) = Reconcile(course, assignment);
         return new(course.Id, course.Title, course.Description ?? "", course.Status, course.CreatedAt,
-            course.Sections.OrderBy(s => s.Order).Select(Mapping.ToDto).ToList(),
+            course.Sections.OrderBy(s => s.Order).Select(LearnMapper.ToDto).ToList(),
             done, assignment?.Status ?? "not_started");
     }
 

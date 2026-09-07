@@ -34,13 +34,13 @@ public record CourseDto(long Id, string Title, string Description, string Status
 
 // Learn shapes
 public record CourseWithProgressDto(long Id, string Title, string Description, string Status,
-    DateTime CreatedAt, List<SectionDto> Sections,
+    DateTime CreatedAt, List<LearnSectionDto> Sections,
     int Progress, List<long> CompletedItemIds, int TotalItems,
     DateTime? AssignedAt, DateTime? CompletedAt, string AssignmentStatus);
 public record LearnBucketsDto(List<CourseWithProgressDto> InProgress,
     List<CourseWithProgressDto> NotStarted, List<CourseWithProgressDto> Completed);
 public record CourseTreeDto(long Id, string Title, string Description, string Status,
-    DateTime CreatedAt, List<SectionDto> Sections,
+    DateTime CreatedAt, List<LearnSectionDto> Sections,
     List<long> CompletedItemIds, string AssignmentStatus);
 
 // Requests
