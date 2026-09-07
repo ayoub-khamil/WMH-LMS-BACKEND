@@ -29,3 +29,6 @@ appsettings.Development.local.json
 .DS_Store
 Thumbs.db
 server.log
+
+# Local production run secrets (Jwt__Key, RootManager__Password); created by hand, never committed
+.env.*.local

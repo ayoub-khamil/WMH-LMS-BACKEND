@@ -40,7 +40,9 @@ public static class Guard
         if (at <= 0 || at == email.Length - 1 || email.Contains(' ')
             || email.IndexOf('@', at + 1) >= 0 || !email[(at + 1)..].Contains('.'))
             throw ApiException.BadRequest("Enter a valid email address.");
-        return email;
+        // Stored lower-case so the plain unique index on Users.Email is
+        // case-insensitive in effect and look-ups can compare directly.
+        return email.ToLowerInvariant();
     }
 
     /// <summary>

@@ -25,9 +25,8 @@ public class AuthService(AppDbContext db, IPasswordService passwords, ITokenServ
 {
     public async Task<(string Token, UserDto User)> LoginAsync(string email, string password)
     {
-        email = (email ?? "").Trim();
-        var user = await db.Users.FirstOrDefaultAsync(u =>
-            u.Email.ToLower() == email.ToLower());
+        email = (email ?? "").Trim().ToLowerInvariant();
+        var user = await db.Users.FirstOrDefaultAsync(u => u.Email == email);
         // Identical response for unknown email vs wrong password (no enumeration).
         if (user is null || !passwords.Verify(user, password ?? ""))
             throw ApiException.Unauthorized();
@@ -99,7 +98,7 @@ public class UserService(AppDbContext db, IPasswordService passwords, AuditServi
         var role = Guard.OneOf(string.IsNullOrWhiteSpace(req.Role) ? "agent" : req.Role, Roles, "role");
         if (role == "manager" && !caller.IsRoot)
             throw ApiException.Forbidden("Only the root account can create managers.");
-        if (await db.Users.AnyAsync(u => u.Email.ToLower() == email.ToLower()))
+        if (await db.Users.AnyAsync(u => u.Email == email))
             throw ApiException.Conflict("User with this email already exists.");
 
         var user = new User
@@ -141,7 +140,7 @@ public class UserService(AppDbContext db, IPasswordService passwords, AuditServi
         if (req.Email is not null)
         {
             var email = Guard.Email(req.Email);
-            if (await db.Users.AnyAsync(u => u.Id != userId && u.Email.ToLower() == email.ToLower()))
+            if (await db.Users.AnyAsync(u => u.Id != userId && u.Email == email))
                 throw ApiException.Conflict("User with this email already exists.");
             user.Email = email;
         }

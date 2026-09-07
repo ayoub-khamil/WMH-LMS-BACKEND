@@ -21,8 +21,7 @@ USER wmh
 COPY --from=build --chown=wmh:wmh /app .
 
 ENV ASPNETCORE_ENVIRONMENT=Production \
-    ASPNETCORE_URLS=http://+:8080 \
-    ConnectionStrings__Sqlite="Data Source=/data/app.db"
+    ASPNETCORE_URLS=http://+:8080
 
 EXPOSE 8080
 VOLUME ["/data"]

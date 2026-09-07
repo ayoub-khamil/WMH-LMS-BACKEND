@@ -26,10 +26,9 @@ public class AppDbContext : DbContext
             e.Property(u => u.Email).IsRequired().HasMaxLength(256);
             e.Property(u => u.Role).IsRequired().HasMaxLength(20);
             e.Property(u => u.Status).IsRequired().HasMaxLength(20);
-            // SQLite NOCASE keeps the uniqueness guarantee case-insensitive, so
-            // "A@b.com" and "a@b.com" cannot both exist. Postgres: swap for citext.
+            // Emails are lower-cased by Guard.Email before they are stored, so a
+            // plain unique index is case-insensitive in effect without a collation.
             e.HasIndex(u => u.Email).IsUnique();
-            e.Property(u => u.Email).UseCollation("NOCASE");
         });
 
         // ── Course tree: Course > Section > Item > Question > Option ──

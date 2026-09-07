@@ -46,8 +46,11 @@ public static class Program
             o.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower;
         });
 
-        var conn = builder.Configuration.GetConnectionString("Sqlite") ?? "Data Source=app.db";
-        builder.Services.AddDbContext<AppDbContext>(o => o.UseSqlite(conn));
+        var conn = builder.Configuration.GetConnectionString("Default")
+            ?? throw new InvalidOperationException(
+                "ConnectionStrings:Default is not configured. Set the ConnectionStrings__Default "
+                + "environment variable to the PostgreSQL connection string.");
+        builder.Services.AddDbContext<AppDbContext>(o => o.UseNpgsql(conn));
 
         builder.Services.AddSingleton(TimeProvider.System);
         builder.Services.AddScoped<IPasswordService, PasswordService>();
@@ -249,8 +252,8 @@ public static class Program
         {
             // The database predates migrations (it was created by EnsureCreated).
             throw new InvalidOperationException(
-                "The existing database was not created by migrations. Stop the API, delete "
-                + "WmhLms.Api/app.db (plus -shm/-wal), and start again to rebuild and re-seed it.", ex);
+                "The existing database was not created by migrations. Stop the API, run "
+                + "`docker compose down -v` to drop the local database, and start again to rebuild and re-seed it.", ex);
         }
 
         var seedEnabled = app.Configuration.GetValue("Seed:DemoContent", app.Environment.IsDevelopment());
