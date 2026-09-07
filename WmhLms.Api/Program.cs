@@ -175,8 +175,11 @@ public static class Program
         }
         builder.Services.AddCors(o => o.AddDefaultPolicy(p => p
             .WithOrigins(corsOrigins)
-            .AllowAnyHeader()
-            .AllowAnyMethod()));
+            .WithHeaders("Authorization", "Content-Type", "X-Correlation-Id")
+            .WithMethods("GET", "POST", "PUT", "PATCH", "DELETE")
+            // Without this the browser hides the correlation id from the SPA
+            // and the error banner can never show a reference.
+            .WithExposedHeaders("X-Correlation-Id", "Retry-After")));
 
         builder.Services.AddHealthChecks()
             .AddDbContextCheck<AppDbContext>("database", tags: ["ready"]);
