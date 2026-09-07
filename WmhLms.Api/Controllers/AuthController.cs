@@ -27,7 +27,4 @@ public class MeController(AuthService auth) : BaseController
     [HttpGet("me"), Authorize]
     public async Task<IActionResult> Me() =>
         Ok(await auth.MeAsync(CurrentUserId));
-
-    [HttpGet("health"), AllowAnonymous]
-    public IActionResult Health() => Ok(new { ok = true });
 }

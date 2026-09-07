@@ -1,7 +1,11 @@
 @host = http://localhost:5000/api
+@root = http://localhost:5000
 
-### Health (anonymous)
-GET {{host}}/health
+### Liveness: is the process up (anonymous, outside /api)
+GET {{root}}/health/live
+
+### Readiness: is the database reachable too (anonymous, outside /api)
+GET {{root}}/health/ready
 
 ### Login as the bootstrapped root manager (RootManager section of appsettings.Development.json)
 # @name login
