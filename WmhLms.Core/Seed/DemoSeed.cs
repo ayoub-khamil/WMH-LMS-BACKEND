@@ -1,61 +1,42 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using WmhLms.Core.Services;
 using WmhLms.Data;
 using WmhLms.Data.Entities;
 
 namespace WmhLms.Core.Seed;
 
-/// <summary>Demo-only seed: root manager + agent + catalogue. No mock progress.</summary>
+/// <summary>
+/// Demo-only seed: one agent + the catalogue. The root manager is created by
+/// RootManagerBootstrap in every environment, so it is not seeded here.
+/// No explicit ids: Postgres identity columns do not advance past inserted
+/// values, so the next insert would collide. No mock progress.
+/// </summary>
 public static class DemoSeed
 {
-    private static string Require(bool isDevelopment, string key, string developmentDefault)
-    {
-        if (isDevelopment) return developmentDefault;
-        throw new InvalidOperationException(
-            $"{key} must be configured when seeding outside Development, "
-            + "or set Seed:DemoContent=false.");
-    }
+    // Deliberately fake: a dev account must never be a real employee address.
+    private const string AgentEmail = "agent@wmh.local";
+    private const string AgentPassword = "dev-agent-password";
 
-    public static async Task RunAsync(AppDbContext db, IPasswordService passwords,
-        IConfiguration config, bool isDevelopment)
+    public static async Task RunAsync(AppDbContext db, IPasswordService passwords)
     {
-        await SeedUsersAsync(db, passwords, config, isDevelopment);
+        await SeedAgentAsync(db, passwords);
         await SeedCoursesAsync(db);
     }
 
-    /// <summary>Root manager + demo agent. Skipped once any user exists.</summary>
-    private static async Task SeedUsersAsync(AppDbContext db, IPasswordService passwords,
-        IConfiguration config, bool isDevelopment)
+    /// <summary>Demo agent. Skipped once it exists.</summary>
+    private static async Task SeedAgentAsync(AppDbContext db, IPasswordService passwords)
     {
-        if (await db.Users.AnyAsync()) return;
+        var email = Guard.Email(AgentEmail);
+        if (await db.Users.AnyAsync(u => u.Email == email)) return;
 
-        // Demo credentials only exist in Development. Outside it, the seed
-        // refuses to invent a password for an account that can sign in.
-        var managerEmail = config["Seed:ManagerEmail"]
-            ?? Require(isDevelopment, "Seed:ManagerEmail", "ayoub.khamil@watermelon-hub.com");
-        var managerPassword = config["Seed:ManagerPassword"]
-            ?? Require(isDevelopment, "Seed:ManagerPassword", "ayoub1234");
-        var agentEmail = config["Seed:AgentEmail"]
-            ?? Require(isDevelopment, "Seed:AgentEmail", "khalid.khamil@watermelon-hub.com");
-        var agentPassword = config["Seed:AgentPassword"]
-            ?? Require(isDevelopment, "Seed:AgentPassword", "khalid1234");
-
-        var manager = new User
-        {
-            Id = 1, FirstName = "Ayoub", LastName = "Khamil", Email = managerEmail,
-            Role = "manager", Status = "active", IsRoot = true,
-            CreatedAt = new DateTime(2026, 9, 1, 9, 0, 0, DateTimeKind.Utc)
-        };
-        manager.PasswordHash = passwords.Hash(managerPassword);
         var agent = new User
         {
-            Id = 2, FirstName = "Khalid", LastName = "Khamil", Email = agentEmail,
+            FirstName = "Demo", LastName = "Agent", Email = email,
             Role = "agent", Status = "active",
             CreatedAt = new DateTime(2026, 9, 1, 10, 0, 0, DateTimeKind.Utc)
         };
-        agent.PasswordHash = passwords.Hash(agentPassword);
-        db.Users.AddRange(manager, agent);
+        agent.PasswordHash = passwords.Hash(AgentPassword);
+        db.Users.Add(agent);
         await db.SaveChangesAsync();
     }
 
@@ -72,7 +53,6 @@ public static class DemoSeed
         {
             new()
             {
-                Id = 101,
                 Title = "BPO Tier 1 Customer Operations & Escalation Mastery",
                 Description = "Core operational onboarding covering ticketing workflows, customer de-escalation protocols, and compliance requirements.",
                 Status = "published",
@@ -81,13 +61,13 @@ public static class DemoSeed
                 {
                     new()
                     {
-                        Id = 1, Title = "Section 1: Foundations & Call Etiquette", Order = 1,
+                        Title = "Section 1: Foundations & Call Etiquette", Order = 1,
                         Items = new List<Item>
                         {
-                            new() { Id = 11, Title = "Executive Welcome & Culture Overview",
+                            new() { Title = "Executive Welcome & Culture Overview",
                                 Type = "video", ContentUrl = "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
                                 TextContent = "", Order = 1 },
-                            new() { Id = 12, Title = "Standard Operating Procedures: Active Listening",
+                            new() { Title = "Standard Operating Procedures: Active Listening",
                                 Type = "text", ContentUrl = "",
                                 TextContent = "Active Listening in High-Paced BPO Environments\n\nActive listening is the cornerstone of frontline customer success. Follow the L.A.S.T. framework:\n\n- Listen: Allow the customer to speak uninterrupted for the first 45 seconds.\n- Acknowledge: Validate frustration with empathetic, neutral statements.\n- Solve: Diagnose the root cause using the knowledge base.\n- Thank: Thank them for their patience and confirm resolution.\n\nNever promise timelines or compensation beyond tier 1 authority.",
                                 Order = 2 }
@@ -95,40 +75,40 @@ public static class DemoSeed
                     },
                     new()
                     {
-                        Id = 2, Title = "Section 2: Escalation Protocols & Compliance", Order = 2,
+                        Title = "Section 2: Escalation Protocols & Compliance", Order = 2,
                         Items = new List<Item>
                         {
-                            new() { Id = 21, Title = "Managing Difficult Scenarios & De-escalation",
+                            new() { Title = "Managing Difficult Scenarios & De-escalation",
                                 Type = "video", ContentUrl = "https://www.youtube.com/watch?v=kJQP7kiw5Fk",
                                 TextContent = "", Order = 1 },
-                            new() { Id = 22, Title = "Tier 1 Knowledge & Escalation Assessment",
+                            new() { Title = "Tier 1 Knowledge & Escalation Assessment",
                                 Type = "quiz", ContentUrl = "", TextContent = "", Order = 2,
                                 Questions = new List<Question>
                                 {
-                                    new() { Id = 201, Type = "multiple_choice",
+                                    new() { Type = "multiple_choice",
                                         Prompt = "What is the very first step in the L.A.S.T. framework during an inbound customer dispute?",
                                         Options = new List<Option>
                                         {
-                                            new() { Id = 1, Text = "Immediately offer a partial refund", IsCorrect = false },
-                                            new() { Id = 2, Text = "Listen uninterrupted for the initial phase", IsCorrect = true },
-                                            new() { Id = 3, Text = "Transfer the caller to a team lead", IsCorrect = false },
-                                            new() { Id = 4, Text = "Place the caller on hold to read notes", IsCorrect = false }
+                                            new() { Text = "Immediately offer a partial refund", IsCorrect = false },
+                                            new() { Text = "Listen uninterrupted for the initial phase", IsCorrect = true },
+                                            new() { Text = "Transfer the caller to a team lead", IsCorrect = false },
+                                            new() { Text = "Place the caller on hold to read notes", IsCorrect = false }
                                         } },
-                                    new() { Id = 202, Type = "multiple_answer",
+                                    new() { Type = "multiple_answer",
                                         Prompt = "Which of the following scenarios are valid immediate escalation triggers to a Tier 2 Manager? (Select all correct)",
                                         Options = new List<Option>
                                         {
-                                            new() { Id = 5, Text = "Customer requesting formal legal action or regulatory filing", IsCorrect = true },
-                                            new() { Id = 6, Text = "Customer asking for general order tracking updates", IsCorrect = false },
-                                            new() { Id = 7, Text = "Suspected account takeover / security credential compromise", IsCorrect = true },
-                                            new() { Id = 8, Text = "Customer asking how to reset their forgotten password", IsCorrect = false }
+                                            new() { Text = "Customer requesting formal legal action or regulatory filing", IsCorrect = true },
+                                            new() { Text = "Customer asking for general order tracking updates", IsCorrect = false },
+                                            new() { Text = "Suspected account takeover / security credential compromise", IsCorrect = true },
+                                            new() { Text = "Customer asking how to reset their forgotten password", IsCorrect = false }
                                         } },
-                                    new() { Id = 203, Type = "true_false",
+                                    new() { Type = "true_false",
                                         Prompt = "Frontline Tier 1 agents are authorized to issue discretionary refunds greater than $500 without prior manager sign-off.",
                                         Options = new List<Option>
                                         {
-                                            new() { Id = 9, Text = "True", IsCorrect = false },
-                                            new() { Id = 10, Text = "False", IsCorrect = true }
+                                            new() { Text = "True", IsCorrect = false },
+                                            new() { Text = "False", IsCorrect = true }
                                         } }
                                 } }
                         }
@@ -137,7 +117,6 @@ public static class DemoSeed
             },
             new()
             {
-                Id = 102,
                 Title = "PCI-DSS Data Security & Privacy Compliance 2026",
                 Description = "Mandatory security compliance training for all contact center personnel handling cardholder and personal data.",
                 Status = "published",
@@ -146,24 +125,24 @@ public static class DemoSeed
                 {
                     new()
                     {
-                        Id = 3, Title = "Section 1: Data Masking & Secure Data Entry", Order = 1,
+                        Title = "Section 1: Data Masking & Secure Data Entry", Order = 1,
                         Items = new List<Item>
                         {
-                            new() { Id = 31, Title = "Handling Cardholder Data in the CRM",
+                            new() { Title = "Handling Cardholder Data in the CRM",
                                 Type = "text", ContentUrl = "",
                                 TextContent = "Cardholder Data Security Standards (PCI-DSS)\n\n1. Never record CVV/CVC codes.\n2. Pause screen recording before reading card data into the gateway.\n3. Clean desk policy: no phones, pads, or USB devices on the floor.",
                                 Order = 1 },
-                            new() { Id = 32, Title = "PCI-DSS Compliance Check",
+                            new() { Title = "PCI-DSS Compliance Check",
                                 Type = "quiz", ContentUrl = "", TextContent = "", Order = 2,
                                 Questions = new List<Question>
                                 {
-                                    new() { Id = 301, Type = "multiple_choice",
+                                    new() { Type = "multiple_choice",
                                         Prompt = "Which of the following elements must NEVER be written down or stored under any circumstances?",
                                         Options = new List<Option>
                                         {
-                                            new() { Id = 11, Text = "Customer first name", IsCorrect = false },
-                                            new() { Id = 12, Text = "CVV / CVC card security code", IsCorrect = true },
-                                            new() { Id = 13, Text = "Ticket ID number", IsCorrect = false }
+                                            new() { Text = "Customer first name", IsCorrect = false },
+                                            new() { Text = "CVV / CVC card security code", IsCorrect = true },
+                                            new() { Text = "Ticket ID number", IsCorrect = false }
                                         } }
                                 } }
                         }
@@ -172,7 +151,6 @@ public static class DemoSeed
             },
             new()
             {
-                Id = 103,
                 Title = "Omnichannel Live Chat & Tone Calibration",
                 Description = "Guidelines for multi-chat concurrency, macro usage, and maintaining empathetic tone across asynchronous channels.",
                 Status = "draft",
@@ -181,10 +159,10 @@ public static class DemoSeed
                 {
                     new()
                     {
-                        Id = 4, Title = "Section 1: Concurrency Best Practices", Order = 1,
+                        Title = "Section 1: Concurrency Best Practices", Order = 1,
                         Items = new List<Item>
                         {
-                            new() { Id = 41, Title = "Balancing 3+ Concurrent Chats",
+                            new() { Title = "Balancing 3+ Concurrent Chats",
                                 Type = "text", ContentUrl = "",
                                 TextContent = "Draft module for managing multiple chat queues efficiently.",
                                 Order = 1 }
@@ -193,21 +171,6 @@ public static class DemoSeed
                 }
             }
         };
-        // Fix up FKs for explicit seeding
-        foreach (var c in courses)
-            foreach (var s in c.Sections)
-            {
-                s.CourseId = c.Id;
-                foreach (var i in s.Items)
-                {
-                    i.SectionId = s.Id;
-                    foreach (var q in i.Questions)
-                    {
-                        q.ItemId = i.Id;
-                        foreach (var o in q.Options) o.QuestionId = q.Id;
-                    }
-                }
-            }
         db.Courses.AddRange(courses);
         await db.SaveChangesAsync();
     }

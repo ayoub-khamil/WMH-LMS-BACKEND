@@ -3,12 +3,12 @@
 ### Health (anonymous)
 GET {{host}}/health
 
-### Login as the seeded root manager
+### Login as the bootstrapped root manager (RootManager section of appsettings.Development.json)
 # @name login
 POST {{host}}/auth/login
 Content-Type: application/json
 
-{ "email": "ayoub.khamil@watermelon-hub.com", "password": "ayoub1234" }
+{ "email": "root@wmh.local", "password": "dev-root-password" }
 
 ### Current user
 @token = {{login.response.body.token}}
@@ -28,7 +28,7 @@ Authorization: Bearer {{token}}
 POST {{host}}/auth/login
 Content-Type: application/json
 
-{ "email": "khalid.khamil@watermelon-hub.com", "password": "khalid1234" }
+{ "email": "agent@wmh.local", "password": "dev-agent-password" }
 
 ### Agent: learning dashboard
 @agentToken = {{agentLogin.response.body.token}}

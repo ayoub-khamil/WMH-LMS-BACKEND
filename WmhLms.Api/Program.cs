@@ -13,6 +13,7 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
 using WmhLms.Api.Middleware;
 using WmhLms.Api.Services;
+using WmhLms.Core.Options;
 using WmhLms.Core.Seed;
 using WmhLms.Core.Services;
 using WmhLms.Data;
@@ -61,6 +62,10 @@ public static class Program
         builder.Services.AddScoped<AssignmentService>();
         builder.Services.AddScoped<LearnService>();
         builder.Services.AddScoped<AuditService>();
+
+        builder.Services.Configure<RootManagerOptions>(
+            builder.Configuration.GetSection(RootManagerOptions.SectionName));
+        builder.Services.AddScoped<RootManagerBootstrap>();
 
         // Behind a load balancer or ingress the scheme and client IP arrive in
         // headers; without this, HTTPS redirection and rate limiting both see
@@ -256,15 +261,18 @@ public static class Program
                 + "`docker compose down -v` to drop the local database, and start again to rebuild and re-seed it.", ex);
         }
 
+        // Always on, in every environment: without it a fresh production database
+        // has no account that can sign in. The app refuses to start if it throws.
+        await scope.ServiceProvider.GetRequiredService<RootManagerBootstrap>()
+            .RunAsync(CancellationToken.None);
+
         var seedEnabled = app.Configuration.GetValue("Seed:DemoContent", app.Environment.IsDevelopment());
         if (seedEnabled && !app.Environment.IsDevelopment())
             logger.LogWarning("Demo seeding is enabled outside Development. This creates known accounts.");
         if (seedEnabled)
         {
             await DemoSeed.RunAsync(db,
-                scope.ServiceProvider.GetRequiredService<IPasswordService>(),
-                app.Configuration,
-                app.Environment.IsDevelopment());
+                scope.ServiceProvider.GetRequiredService<IPasswordService>());
             logger.LogInformation("Demo seed check complete.");
         }
     }
