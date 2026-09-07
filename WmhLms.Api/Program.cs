@@ -40,6 +40,18 @@ public static class Program
                 Environment.GetEnvironmentVariable("ASPNETCORE_URLS")))
             builder.WebHost.UseUrls("http://localhost:5000");
 
+        // Railway searches logs by field, and a stack trace split across
+        // indented text lines is unsearchable. One JSON object per line, with
+        // scopes included so CorrelationIdMiddleware's CorrelationId and
+        // RequestPath ride along inside every line the request produces.
+        builder.Logging.ClearProviders();
+        builder.Logging.AddJsonConsole(o =>
+        {
+            o.IncludeScopes = true;
+            o.TimestampFormat = "yyyy-MM-ddTHH:mm:ss.fffZ";
+            o.UseUtcTimestamp = true;
+        });
+
         builder.Services.AddControllers().AddJsonOptions(o =>
         {
             // Frontend contract is snake_case. .NET 8 ships this policy, so the
