@@ -27,5 +27,5 @@ jobs:
     needs: build-and-test
     steps:
       - uses: actions/checkout@v4
-      # Proves the image still builds; the Dockerfile runs the tests too.
+      # Proves the image still builds. Tests run in the job above, not in the image.
       - run: docker build -t wmh-lms-api:${{ github.sha }} .
