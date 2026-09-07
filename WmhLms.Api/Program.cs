@@ -66,6 +66,9 @@ public static class Program
         builder.Services.AddDbContext<AppDbContext>(o => o.UseNpgsql(conn));
 
         builder.Services.AddSingleton(TimeProvider.System);
+        // Singleton: the failure counts have to outlive the request that
+        // records them, which is the whole point of the lockout.
+        builder.Services.AddSingleton<FailedLoginTracker>();
         builder.Services.AddScoped<IPasswordService, PasswordService>();
         builder.Services.AddScoped<ITokenService, TokenService>();
         builder.Services.AddScoped<AuthService>();

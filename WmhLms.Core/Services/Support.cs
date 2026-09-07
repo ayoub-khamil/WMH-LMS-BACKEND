@@ -80,6 +80,10 @@ public class ApiException(int statusCode, string message) : Exception(message)
     public static ApiException Unauthorized(string m = "Invalid email or password.") => new(401, m);
     public static ApiException Forbidden(string m = "Forbidden.") => new(403, m);
     public static ApiException Conflict(string m) => new(409, m);
+    public static ApiException TooManyRequests(string m, int retryAfterSeconds) => new(429, m)
+    {
+        RetryAfterSeconds = retryAfterSeconds
+    };
     public static ApiException Locked(string m, int retryAfterSeconds) => new(423, m)
     {
         RetryAfterSeconds = retryAfterSeconds

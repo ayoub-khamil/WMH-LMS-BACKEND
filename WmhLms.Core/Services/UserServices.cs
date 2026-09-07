@@ -21,15 +21,23 @@ public static class Mapping
         c.Status, c.CreatedAt, c.Sections.OrderBy(s => s.Order).Select(ToDto).ToList());
 }
 
-public class AuthService(AppDbContext db, IPasswordService passwords, ITokenService tokens)
+public class AuthService(AppDbContext db, IPasswordService passwords, ITokenService tokens,
+    FailedLoginTracker failedLogins)
 {
     public async Task<(string Token, UserDto User)> LoginAsync(string email, string password)
     {
         email = (email ?? "").Trim().ToLowerInvariant();
+        failedLogins.EnsureNotBlocked(email);
         var user = await db.Users.FirstOrDefaultAsync(u => u.Email == email);
         // Identical response for unknown email vs wrong password (no enumeration).
+        // An unknown email is counted too: skipping it would let the lockout
+        // answer "does this account exist" by never arriving.
         if (user is null || !passwords.Verify(user, password ?? ""))
+        {
+            failedLogins.RecordFailure(email);
             throw ApiException.Unauthorized();
+        }
+        failedLogins.Clear(email);
         if (user.Status == "disabled")
             throw ApiException.Forbidden("This account has been disabled. Please contact your administrator.");
         return (tokens.Create(user), Mapping.ToDto(user));
