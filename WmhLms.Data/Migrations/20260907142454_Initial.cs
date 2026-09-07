@@ -283,11 +283,43 @@ namespace WmhLms.Data.Migrations
                 table: "Users",
                 column: "Email",
                 unique: true);
+
+            // Database-level root protection (PRODUCTION-REVIEW.md 8.5): the
+            // service layer checks first so users see a 403; this guarantees no
+            // other code path, direct SQL or migration can remove or demote root.
+            migrationBuilder.Sql("""
+                CREATE UNIQUE INDEX "UX_Users_SingleRoot" ON "Users" ("IsRoot") WHERE "IsRoot";
+
+                CREATE OR REPLACE FUNCTION protect_root_user() RETURNS trigger AS $$
+                BEGIN
+                    IF TG_OP = 'DELETE' THEN
+                        IF OLD."IsRoot" THEN
+                            RAISE EXCEPTION 'The root manager account cannot be deleted.';
+                        END IF;
+                        RETURN OLD;
+                    END IF;
+                    IF OLD."IsRoot" AND (NOT NEW."IsRoot" OR NEW."Role" <> 'manager' OR NEW."Status" <> 'active') THEN
+                        RAISE EXCEPTION 'The root manager account cannot be demoted, disabled, or un-rooted.';
+                    END IF;
+                    RETURN NEW;
+                END;
+                $$ LANGUAGE plpgsql;
+
+                CREATE TRIGGER trg_protect_root_user
+                    BEFORE UPDATE OR DELETE ON "Users"
+                    FOR EACH ROW EXECUTE FUNCTION protect_root_user();
+                """);
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.Sql("""
+                DROP TRIGGER IF EXISTS trg_protect_root_user ON "Users";
+                DROP FUNCTION IF EXISTS protect_root_user();
+                DROP INDEX IF EXISTS "UX_Users_SingleRoot";
+                """);
+
             migrationBuilder.DropTable(
                 name: "Assignments");
 
