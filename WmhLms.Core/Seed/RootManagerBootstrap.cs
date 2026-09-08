@@ -28,6 +28,23 @@ public sealed class RootManagerBootstrap(
         var email = Guard.Email(o.Email);
         if (await db.Users.AnyAsync(u => u.Email == email, ct)) return;
 
+        // The database permits exactly one root account (8.5). If one already
+        // exists under a different address, inserting a second violates the
+        // index and kills the process during startup - so a deploy that merely
+        // corrects a typo in RootManager:Email would be an outage. Say plainly
+        // what was found and carry on with the root that is already there.
+        var existingRoot = await db.Users.Where(u => u.IsRoot)
+            .Select(u => u.Email).FirstOrDefaultAsync(ct);
+        if (existingRoot is not null)
+        {
+            logger.LogWarning(
+                "RootManager:Email is configured as {Configured}, but {Existing} is already the "
+                + "root account. Only one root account can exist, so none was created. Sign in as "
+                + "{Existing}, or change that account's email, to move the root elsewhere.",
+                email, existingRoot, existingRoot);
+            return;
+        }
+
         db.Users.Add(new User
         {
             FirstName = o.FirstName,
