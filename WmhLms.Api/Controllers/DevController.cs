@@ -21,6 +21,7 @@ public class DevController(AppDbContext db, IWebHostEnvironment env) : BaseContr
     {
         if (!env.IsDevelopment()) return NotFound();
         db.QuizLocks.RemoveRange(db.QuizLocks);
+        db.Notes.RemoveRange(db.Notes);
         db.Assignments.RemoveRange(db.Assignments);
         db.Courses.RemoveRange(db.Courses);
         db.Users.RemoveRange(db.Users.Where(u => !u.IsRoot));

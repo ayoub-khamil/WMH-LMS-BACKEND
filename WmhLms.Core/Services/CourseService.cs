@@ -67,6 +67,7 @@ public class CourseService(AppDbContext db)
         // Explicit rather than relying on the FK cascade, so the behaviour is
         // identical on any provider and visible at the call site.
         db.QuizLocks.RemoveRange(db.QuizLocks.Where(l => l.CourseId == id));
+        db.Notes.RemoveRange(db.Notes.Where(n => n.CourseId == id));
         db.Assignments.RemoveRange(db.Assignments.Where(a => a.CourseId == id));
         db.Courses.Remove(course);
         await db.SaveChangesAsync();
@@ -172,6 +173,7 @@ public class CourseService(AppDbContext db)
         var item = await db.Items.FindAsync(itemId)
             ?? throw ApiException.NotFound("Item not found");
         db.QuizLocks.RemoveRange(db.QuizLocks.Where(l => l.QuizItemId == itemId));
+        db.Notes.RemoveRange(db.Notes.Where(n => n.ItemId == itemId));
         db.Items.Remove(item);
         await db.SaveChangesAsync();
     }

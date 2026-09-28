@@ -77,6 +77,7 @@ public static class Program
         builder.Services.AddScoped<AssignmentService>();
         builder.Services.AddScoped<LearnService>();
         builder.Services.AddScoped<AuditService>();
+        builder.Services.AddScoped<NoteService>();
 
         builder.Services.Configure<RootManagerOptions>(
             builder.Configuration.GetSection(RootManagerOptions.SectionName));

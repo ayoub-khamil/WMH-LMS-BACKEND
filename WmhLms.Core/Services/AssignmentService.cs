@@ -40,6 +40,9 @@ public class AssignmentService(AppDbContext db)
         // re-lock the learner if they were ever assigned the course again.
         db.QuizLocks.RemoveRange(db.QuizLocks.Where(l =>
             l.CourseId == req.CourseId && ids.Contains(l.AgentId)));
+        // Notes belong to the enrolment too, and do not outlive it.
+        db.Notes.RemoveRange(db.Notes.Where(n =>
+            n.CourseId == req.CourseId && ids.Contains(n.AgentId)));
         db.Assignments.RemoveRange(db.Assignments.Where(a =>
             a.CourseId == req.CourseId && ids.Contains(a.AgentId)));
         await db.SaveChangesAsync();

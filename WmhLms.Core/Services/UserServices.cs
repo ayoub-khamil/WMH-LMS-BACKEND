@@ -188,6 +188,7 @@ public class UserService(AppDbContext db, IPasswordService passwords, AuditServi
         // Explicit rather than relying on the FK cascade, so the behaviour is
         // identical on any provider and visible at the call site.
         db.QuizLocks.RemoveRange(db.QuizLocks.Where(l => l.AgentId == userId));
+        db.Notes.RemoveRange(db.Notes.Where(n => n.AgentId == userId));
         db.Assignments.RemoveRange(db.Assignments.Where(a => a.AgentId == userId));
         db.Users.Remove(user);
         audit.Record(caller, AuditService.Actions.UserDeleted, "user", user.Id,

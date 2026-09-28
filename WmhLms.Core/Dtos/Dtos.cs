@@ -64,6 +64,10 @@ public record CompleteItemRequest(long ItemId, long CourseId, long AgentId);
 public record QuizAnswerRequest(long QuestionId, List<long> SelectedOptionIds);
 public record SubmitQuizRequest(long ItemId, long CourseId, long AgentId, List<QuizAnswerRequest> Answers);
 
+// Agent notes (never returned to anyone but their author).
+public record NoteDto(long ItemId, string Body, DateTime UpdatedAt);
+public record SaveNoteRequest(long CourseId, string? Body);
+
 // Quiz submit response mirrors the old contract plus server lock info.
 public record QuizResultDto(bool Passed, string Score, int ScorePercentage,
     List<long>? IncorrectQuestionIds, int? LockedSecondsRemaining);

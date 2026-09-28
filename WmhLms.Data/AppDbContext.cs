@@ -16,6 +16,7 @@ public class AppDbContext : DbContext
     public DbSet<Assignment> Assignments => Set<Assignment>();
     public DbSet<QuizLock> QuizLocks => Set<QuizLock>();
     public DbSet<AuditEntry> AuditEntries => Set<AuditEntry>();
+    public DbSet<Note> Notes => Set<Note>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -110,6 +111,20 @@ public class AppDbContext : DbContext
             e.HasOne<Item>().WithMany()
                 .HasForeignKey(l => l.QuizItemId).OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(l => new { l.AgentId, l.QuizItemId }).IsUnique();
+        });
+
+        b.Entity<Note>(e =>
+        {
+            e.Property(n => n.Body).IsRequired().HasMaxLength(10_000);
+            e.HasOne<User>().WithMany()
+                .HasForeignKey(n => n.AgentId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<Course>().WithMany()
+                .HasForeignKey(n => n.CourseId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<Item>().WithMany()
+                .HasForeignKey(n => n.ItemId).OnDelete(DeleteBehavior.Cascade);
+            // One notepad per agent per item; also the lookup for saves.
+            e.HasIndex(n => new { n.AgentId, n.ItemId }).IsUnique();
+            e.HasIndex(n => new { n.AgentId, n.CourseId });
         });
     }
 }
