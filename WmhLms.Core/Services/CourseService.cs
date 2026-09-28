@@ -16,10 +16,14 @@ public class CourseService(AppDbContext db)
         .Include(c => c.Sections).ThenInclude(s => s.Items).ThenInclude(i => i.Questions)
         .ThenInclude(q => q.Options);
 
-    public async Task<PagedResult<CourseDto>> ListAsync(string? status, string? search, int page, int limit)
+    /// <summary>
+    /// The catalogue list only shows counts, so it no longer loads every
+    /// section, item, question and option of every course on the page.
+    /// </summary>
+    public async Task<PagedResult<CourseSummaryDto>> ListAsync(string? status, string? search, int page, int limit)
     {
         (page, limit) = Guard.Paging(page, limit);
-        var q = Full().AsQueryable();
+        var q = db.Courses.AsNoTracking();
         if (!string.IsNullOrWhiteSpace(status)) q = q.Where(c => c.Status == status);
         if (!string.IsNullOrWhiteSpace(search))
         {
@@ -29,8 +33,11 @@ public class CourseService(AppDbContext db)
         }
         var total = await q.CountAsync();
         var items = await q.OrderByDescending(c => c.Id)
-            .Skip((page - 1) * limit).Take(limit).ToListAsync();
-        return PagedResult<CourseDto>.Of(items.Select(Mapping.ToDto).ToList(), page, limit, total);
+            .Skip((page - 1) * limit).Take(limit)
+            .Select(c => new CourseSummaryDto(c.Id, c.Title, c.Description ?? "", c.Status, c.CreatedAt,
+                c.Sections.Count(), c.Sections.SelectMany(s => s.Items).Count()))
+            .ToListAsync();
+        return PagedResult<CourseSummaryDto>.Of(items, page, limit, total);
     }
 
     public async Task<CourseDto> GetByIdAsync(long id) =>
@@ -56,9 +63,30 @@ public class CourseService(AppDbContext db)
         var course = await db.Courses.FindAsync(id) ?? throw ApiException.NotFound("Course not found");
         if (req.Title is not null) course.Title = Guard.RequiredText(req.Title, "Title", 300);
         if (req.Description is not null) course.Description = req.Description.Trim();
-        if (req.Status is not null) course.Status = Guard.OneOf(req.Status, Statuses, "status");
+        if (req.Status is not null)
+        {
+            var status = Guard.OneOf(req.Status, Statuses, "status");
+            if (status == "published") await RequireNoEmptyQuizzesAsync(id);
+            course.Status = status;
+        }
         await db.SaveChangesAsync();
         return await GetByIdAsync(id);
+    }
+
+    /// <summary>
+    /// A quiz with no questions cannot be passed, and the items after it are
+    /// locked behind it, so a course cannot go live with one.
+    /// </summary>
+    private async Task RequireNoEmptyQuizzesAsync(long courseId)
+    {
+        var empty = await db.Items
+            .Where(i => i.Type == "quiz" && !i.Questions.Any())
+            .Join(db.Sections.Where(s => s.CourseId == courseId),
+                i => i.SectionId, s => s.Id, (i, s) => i.Title)
+            .ToListAsync();
+        if (empty.Count > 0)
+            throw ApiException.BadRequest(
+                $"Add questions to these quizzes before publishing: {string.Join(", ", empty)}.");
     }
 
     public async Task DeleteAsync(long id)

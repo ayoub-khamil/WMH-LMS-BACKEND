@@ -16,6 +16,16 @@ public static class Progress
 {
     public static int Percent(int completed, int total) =>
         total > 0 ? (int)Math.Round(completed / (double)total * 100) : 0;
+
+    /// <summary>
+    /// Assignment status from progress reconciled against the course as it is
+    /// now. The stored status goes stale when a manager adds or removes items,
+    /// so every read derives it from the counts instead.
+    /// </summary>
+    public static string StatusOf(int completed, int total) =>
+        total > 0 && completed >= total ? "completed"
+        : completed > 0 ? "in_progress"
+        : "not_started";
 }
 
 /// <summary>Shared input guards so validation reads the same in every service.</summary>

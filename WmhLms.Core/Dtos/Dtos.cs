@@ -32,6 +32,10 @@ public record SectionDto(long Id, long CourseId, string Title, int Order, List<I
 public record CourseDto(long Id, string Title, string Description, string Status,
     DateTime CreatedAt, List<SectionDto> Sections);
 
+/// <summary>Manager course list row: counts instead of the whole tree.</summary>
+public record CourseSummaryDto(long Id, string Title, string Description, string Status,
+    DateTime CreatedAt, int SectionsCount, int ItemsCount);
+
 // Learn shapes
 public record CourseWithProgressDto(long Id, string Title, string Description, string Status,
     DateTime CreatedAt, List<LearnSectionDto> Sections,
@@ -41,7 +45,7 @@ public record LearnBucketsDto(List<CourseWithProgressDto> InProgress,
     List<CourseWithProgressDto> NotStarted, List<CourseWithProgressDto> Completed);
 public record CourseTreeDto(long Id, string Title, string Description, string Status,
     DateTime CreatedAt, List<LearnSectionDto> Sections,
-    List<long> CompletedItemIds, string AssignmentStatus);
+    List<long> CompletedItemIds, string AssignmentStatus, DateTime? CompletedAt);
 
 // Requests
 public record LoginRequest(string Email, string Password);

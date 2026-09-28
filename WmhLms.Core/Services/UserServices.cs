@@ -24,6 +24,11 @@ public static class Mapping
 public class AuthService(AppDbContext db, IPasswordService passwords, ITokenService tokens,
     FailedLoginTracker failedLogins)
 {
+    // Hash of a random value nobody knows, created once per process. Unknown
+    // emails are checked against it so they cost the same hashing time as a
+    // real account, and response timing cannot reveal which emails exist.
+    private static string? _decoyHash;
+
     public async Task<(string Token, UserDto User)> LoginAsync(string email, string password)
     {
         email = (email ?? "").Trim().ToLowerInvariant();
@@ -32,7 +37,12 @@ public class AuthService(AppDbContext db, IPasswordService passwords, ITokenServ
         // Identical response for unknown email vs wrong password (no enumeration).
         // An unknown email is counted too: skipping it would let the lockout
         // answer "does this account exist" by never arriving.
-        if (user is null || !passwords.Verify(user, password ?? ""))
+        var candidate = user ?? new User
+        {
+            PasswordHash = _decoyHash ??= passwords.Hash(Guid.NewGuid().ToString("N"))
+        };
+        var verified = passwords.Verify(candidate, password ?? "");
+        if (user is null || !verified)
         {
             failedLogins.RecordFailure(email);
             throw ApiException.Unauthorized();
@@ -214,17 +224,19 @@ public class UserService(AppDbContext db, IPasswordService passwords, AuditServi
                 ? new HashSet<long>()
                 : c.Sections.SelectMany(s => s.Items).Select(i => i.Id).ToHashSet();
             // Count only completions that still point at items in this course.
-            var doneIds = JsonIds.Read(a.CompletedItemIdsJson).Where(itemIds.Contains).ToList();
+            var doneIds = JsonIds.Read(a.CompletedItemIdsJson).Where(itemIds.Contains).Distinct().ToList();
+            // Derived, not stored: a module added after completion reopens the course.
+            var status = Progress.StatusOf(doneIds.Count, itemIds.Count);
             return (object)new Dictionary<string, object?>
             {
                 ["course_id"] = a.CourseId,
                 ["course_title"] = c?.Title ?? "Unknown Course",
-                ["status"] = a.Status,
+                ["status"] = status,
                 ["progress"] = Progress.Percent(doneIds.Count, itemIds.Count),
                 ["total_items"] = itemIds.Count,
                 ["completed_item_ids"] = doneIds,
                 ["assigned_at"] = a.AssignedAt,
-                ["completed_at"] = a.CompletedAt
+                ["completed_at"] = status == "completed" ? a.CompletedAt : null
             };
         }).ToList();
     }

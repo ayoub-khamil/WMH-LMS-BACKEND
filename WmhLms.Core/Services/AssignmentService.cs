@@ -64,17 +64,19 @@ public class AssignmentService(AppDbContext db)
             agents.TryGetValue(a.AgentId, out var u);
             // Count only completions that still point at items in this course.
             var done = JsonIds.Read(a.CompletedItemIdsJson).Where(itemIds.Contains).Distinct().Count();
+            // Derived, not stored: a module added after completion reopens the course.
+            var status = Progress.StatusOf(done, itemIds.Count);
             return (object)new Dictionary<string, object?>
             {
                 ["agent_id"] = a.AgentId,
                 ["agent_name"] = u is null ? $"Agent #{a.AgentId}" : Mapping.NameOf(u),
                 ["agent_email"] = u?.Email ?? "",
-                ["status"] = a.Status,
+                ["status"] = status,
                 ["progress"] = Progress.Percent(done, itemIds.Count),
                 ["completed_items_count"] = done,
                 ["total_items"] = itemIds.Count,
                 ["assigned_at"] = a.AssignedAt,
-                ["completed_at"] = a.CompletedAt
+                ["completed_at"] = status == "completed" ? a.CompletedAt : null
             };
         }).ToList();
     }

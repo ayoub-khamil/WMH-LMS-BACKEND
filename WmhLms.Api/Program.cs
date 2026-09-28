@@ -85,13 +85,9 @@ public static class Program
 
         // Behind a load balancer or ingress the scheme and client IP arrive in
         // headers; without this, HTTPS redirection and rate limiting both see
-        // the proxy instead of the caller.
+        // the proxy instead of the caller. Only configured proxies are trusted.
         builder.Services.Configure<ForwardedHeadersOptions>(o =>
-        {
-            o.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
-            o.KnownNetworks.Clear();
-            o.KnownProxies.Clear();
-        });
+            ForwardedHeadersSetup.Apply(o, builder.Configuration));
 
         var jwt = new JwtOptions(
             ResolveJwtKey(builder.Configuration, isDevelopment),

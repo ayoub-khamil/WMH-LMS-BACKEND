@@ -84,13 +84,11 @@ public class LearnService(AppDbContext db, TimeProvider time, IConfiguration con
     private static CourseWithProgressDto WithProgress(Course c, Assignment? a)
     {
         var (done, total) = Reconcile(c, a);
-        var status = a?.Status ?? "not_started";
-        if (total > 0 && done.Count >= total) status = "completed";
-        else if (done.Count > 0) status = "in_progress";
+        var status = Progress.StatusOf(done.Count, total);
         return new(c.Id, c.Title, c.Description ?? "", c.Status, c.CreatedAt,
             c.Sections.OrderBy(s => s.Order).Select(LearnMapper.ToDto).ToList(),
             Progress.Percent(done.Count, total), done, total,
-            a?.AssignedAt, a?.CompletedAt, status);
+            a?.AssignedAt, status == "completed" ? a?.CompletedAt : null, status);
     }
 
     public async Task<LearnBucketsDto> GetCoursesAsync(long agentId)
@@ -131,10 +129,11 @@ public class LearnService(AppDbContext db, TimeProvider time, IConfiguration con
         var assignment = callerIsManager
             ? await FindAssignmentAsync(courseId, agentId)
             : await RequireAssignmentAsync(courseId, agentId);
-        var (done, _) = Reconcile(course, assignment);
+        var (done, total) = Reconcile(course, assignment);
+        var status = Progress.StatusOf(done.Count, total);
         return new(course.Id, course.Title, course.Description ?? "", course.Status, course.CreatedAt,
             course.Sections.OrderBy(s => s.Order).Select(LearnMapper.ToDto).ToList(),
-            done, assignment?.Status ?? "not_started");
+            done, status, status == "completed" ? assignment?.CompletedAt : null);
     }
 
     public async Task<object> ResumeAsync(long courseId, long agentId, bool callerIsManager)
@@ -154,10 +153,15 @@ public class LearnService(AppDbContext db, TimeProvider time, IConfiguration con
     public async Task<object> CompleteItemAsync(CompleteItemRequest req)
     {
         var course = await CourseTreeAsync(req.CourseId);
-        if (Flat(course).All(i => i.Id != req.ItemId))
-            throw ApiException.BadRequest("That item does not belong to this course.");
+        var item = Flat(course).FirstOrDefault(i => i.Id == req.ItemId)
+            ?? throw ApiException.BadRequest("That item does not belong to this course.");
         var assignment = await RequireAssignmentAsync(req.CourseId, req.AgentId);
         RequireEarlierItemsComplete(course, assignment, req.ItemId);
+        // A graded quiz only counts once it is passed through /quiz/submit.
+        // Without this, calling /complete directly skipped the 100% rule.
+        // A quiz with no questions has nothing to pass, so it completes here.
+        if (item.Type == "quiz" && item.Questions.Count > 0)
+            throw ApiException.BadRequest("Pass the assessment to complete this module.");
 
         var complete = ApplyCompletion(course, assignment, req.ItemId, time.GetUtcNow().UtcDateTime);
         await db.SaveChangesAsync();
@@ -165,6 +169,7 @@ public class LearnService(AppDbContext db, TimeProvider time, IConfiguration con
         {
             ["success"] = true,
             ["is_course_completed"] = complete,
+            ["completed_at"] = assignment.CompletedAt,
             ["completed_item_ids"] = JsonIds.Read(assignment.CompletedItemIdsJson)
         };
     }

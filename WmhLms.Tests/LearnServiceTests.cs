@@ -146,8 +146,8 @@ public class LearnServiceTests : IDisposable
         var first = (Dictionary<string, object?>)await _learn.CompleteItemAsync(new(11, 101, 2));
         Assert.Equal(false, first["is_course_completed"]);
 
-        var second = (Dictionary<string, object?>)await _learn.CompleteItemAsync(new(12, 101, 2));
-        Assert.Equal(true, second["is_course_completed"]);
+        // The quiz is the last item; passing it completes the course.
+        await _learn.SubmitQuizAsync(new SubmitQuizRequest(12, 101, 2, [new QuizAnswerRequest(201, [1])]));
 
         var assignment = await _db.Assignments.SingleAsync();
         Assert.Equal("completed", assignment.Status);
@@ -178,7 +178,7 @@ public class LearnServiceTests : IDisposable
         await _db.SaveChangesAsync();
 
         await _learn.CompleteItemAsync(new CompleteItemRequest(11, 101, 2));
-        await _learn.CompleteItemAsync(new CompleteItemRequest(12, 101, 2));
+        await _learn.SubmitQuizAsync(new SubmitQuizRequest(12, 101, 2, [new QuizAnswerRequest(201, [1])]));
 
         var assignment = await _db.Assignments.SingleAsync();
         Assert.Equal("[11,12]", assignment.CompletedItemIdsJson);
@@ -309,6 +309,85 @@ public class LearnServiceTests : IDisposable
         Assert.Empty(buckets.InProgress);
         Assert.Empty(buckets.NotStarted);
         Assert.Empty(buckets.Completed);
+    }
+
+    // ── Quizzes cannot be skipped ──
+
+    [Fact]
+    public async Task A_graded_quiz_cannot_be_completed_without_passing_it()
+    {
+        Enrol(completedItemIds: "[11]");
+        await _db.SaveChangesAsync();
+
+        var ex = await Assert.ThrowsAsync<ApiException>(() =>
+            _learn.CompleteItemAsync(new CompleteItemRequest(12, 101, 2)));
+
+        Assert.Equal(400, ex.StatusCode);
+        Assert.Equal("[11]", (await _db.Assignments.SingleAsync()).CompletedItemIdsJson);
+    }
+
+    [Fact]
+    public async Task A_quiz_with_no_questions_can_be_completed_so_it_never_blocks_the_course()
+    {
+        _db.Questions.RemoveRange(_db.Questions);
+        Enrol(completedItemIds: "[11]");
+        await _db.SaveChangesAsync();
+
+        var result = (Dictionary<string, object?>)await _learn.CompleteItemAsync(new CompleteItemRequest(12, 101, 2));
+
+        Assert.Equal(true, result["is_course_completed"]);
+        Assert.NotNull(result["completed_at"]);
+    }
+
+    // ── Status follows the course as it is now ──
+
+    [Fact]
+    public async Task Adding_a_module_to_a_completed_course_reopens_it()
+    {
+        Enrol(completedItemIds: "[11]");
+        await _db.SaveChangesAsync();
+        await _learn.SubmitQuizAsync(new SubmitQuizRequest(12, 101, 2, [new QuizAnswerRequest(201, [1])]));
+
+        _db.Items.Add(new Item { Id = 13, SectionId = 1, Title = "New SOP", Type = "text", Order = 3 });
+        await _db.SaveChangesAsync();
+
+        var course = Assert.Single((await _learn.GetCoursesAsync(2)).InProgress);
+        Assert.Equal("in_progress", course.AssignmentStatus);
+        Assert.Null(course.CompletedAt);
+        var tree = await _learn.GetCourseTreeAsync(101, 2, callerIsManager: false);
+        Assert.Equal("in_progress", tree.AssignmentStatus);
+        Assert.Null(tree.CompletedAt);
+    }
+
+    [Fact]
+    public async Task The_course_tree_carries_the_completion_date()
+    {
+        Enrol(completedItemIds: "[11]");
+        await _db.SaveChangesAsync();
+        await _learn.SubmitQuizAsync(new SubmitQuizRequest(12, 101, 2, [new QuizAnswerRequest(201, [1])]));
+
+        var tree = await _learn.GetCourseTreeAsync(101, 2, callerIsManager: false);
+
+        Assert.Equal("completed", tree.AssignmentStatus);
+        Assert.Equal(_clock.GetUtcNow().UtcDateTime, tree.CompletedAt);
+    }
+
+    [Fact]
+    public async Task The_manager_cohort_view_derives_status_from_progress()
+    {
+        _db.Assignments.Add(new Assignment
+        {
+            CourseId = 101, AgentId = 2, CompletedItemIdsJson = "[11]",
+            Status = "completed", AssignedAt = _clock.GetUtcNow().UtcDateTime,
+            CompletedAt = _clock.GetUtcNow().UtcDateTime
+        });
+        await _db.SaveChangesAsync();
+
+        var row = (Dictionary<string, object?>)Assert.Single(
+            await new AssignmentService(_db).GetCourseAssignmentsAsync(101));
+
+        Assert.Equal("in_progress", row["status"]);
+        Assert.Null(row["completed_at"]);
     }
 
     public void Dispose() => _db.Dispose();
