@@ -133,7 +133,7 @@ public class CourseService(AppDbContext db)
         var item = new Item
         {
             SectionId = sectionId, Title = title, Type = type,
-            ContentUrl = req.ContentUrl ?? "", TextContent = req.TextContent ?? "",
+            ContentUrl = req.ContentUrl ?? "", TextContent = RichText.Normalize(req.TextContent),
             Order = nextOrder + 1
         };
         db.Items.Add(item);
@@ -162,7 +162,7 @@ public class CourseService(AppDbContext db)
         if (req.Title is not null) item.Title = Guard.RequiredText(req.Title, "Title", 300);
         if (req.Type is not null) item.Type = Guard.OneOf(req.Type, ItemTypes, "item type");
         if (req.ContentUrl is not null) item.ContentUrl = req.ContentUrl;
-        if (req.TextContent is not null) item.TextContent = req.TextContent;
+        if (req.TextContent is not null) item.TextContent = RichText.Normalize(req.TextContent);
         await db.SaveChangesAsync();
         return Mapping.ToDto(item);
     }
